@@ -1,3 +1,6 @@
+mod format;
+
+use format::ThemeFormatter;
 use hyper::{
     header,
     service::{make_service_fn, service_fn},
@@ -9,6 +12,7 @@ use tokio::{
     fs::{self, File},
     io::{AsyncBufReadExt, BufReader},
 };
+use url::Url;
 
 const THEME_DIR: &str = "themes";
 
@@ -25,9 +29,17 @@ async fn main() {
 }
 
 async fn fetch_response(req: Request<Body>) -> Result<Response<Body>> {
-    match (req.method(), req.uri().path(), req.uri().query()) {
-        (&Method::GET, "/theme", Some(theme)) => Ok(send_theme(theme).await),
-        (&Method::GET, "/themes", None) => Ok(send_themes_list().await),
+    let url = Url::parse(&format!("http://localhost{}", req.uri())).unwrap();
+    let mut path_segments = url.path_segments().unwrap();
+    match (req.method(), path_segments.next()) {
+        (&Method::GET, Some("theme")) => {
+            if let Some(theme) = path_segments.next() {
+                Ok(send_theme(theme, ThemeFormatter::from(&url)).await)
+            } else {
+                Ok(send_not_found())
+            }
+        }
+        (&Method::GET, Some("themes")) => Ok(send_themes_list().await),
         _ => Ok(send_not_found()),
     }
 }
@@ -44,7 +56,10 @@ async fn send_themes_list() -> Response<Body> {
 
     let mut themes_vec = Vec::new();
     while let Some(theme) = themes.next_entry().await.unwrap() {
-        themes_vec.push(Value::String(theme.file_name().into_string().unwrap()));
+        let theme = theme.file_name().into_string().unwrap();
+        if let Some(theme_object) = create_theme_object(&theme).await {
+            themes_vec.push(theme_object);
+        }
     }
     let body = serde_json::to_string_pretty(&Value::Array(themes_vec))
         .unwrap()
@@ -55,13 +70,25 @@ async fn send_themes_list() -> Response<Body> {
         .unwrap()
 }
 
-async fn send_theme(theme: &str) -> Response<Body> {
-    // Define file location of theme
+async fn send_theme(theme: &str, formatter: ThemeFormatter) -> Response<Body> {
+    if let Some(theme_object) = create_theme_object(theme).await {
+        let body = formatter.run(&theme_object).into();
+        Response::builder()
+            .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+            .body(body)
+            .unwrap()
+    } else {
+        send_not_found()
+    }
+}
+
+async fn create_theme_object(theme: &str) -> Option<Value> {
     let theme_path = Path::new(THEME_DIR).join(theme);
 
     if let Ok(file) = File::open(theme_path).await {
         // Map to store the theme's color values
         let mut theme_map = Map::new();
+        theme_map.insert(String::from("name"), Value::String(theme.to_string()));
 
         let mut buf_reader = BufReader::new(file).lines();
         while let Some(line) = buf_reader.next_line().await.unwrap() {
@@ -75,16 +102,8 @@ async fn send_theme(theme: &str) -> Response<Body> {
             );
         }
 
-        // Format JSON and convert to body
-        let body = serde_json::to_string_pretty(&Value::Object(theme_map))
-            .unwrap()
-            .into();
-
-        Response::builder()
-            .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
-            .body(body)
-            .unwrap()
+        Some(Value::Object(theme_map))
     } else {
-        send_not_found()
+        None
     }
 }
