@@ -1,0 +1,11 @@
+[package]
+name = "theme-repo-backend"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+hyper = { version = "0.14", features = ["full"] }
+tokio = { version = "1.17", features = ["full"] }
+serde_json = "1.0"
