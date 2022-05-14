@@ -1,10 +1,14 @@
 use hyper::{
+    header,
     service::{make_service_fn, service_fn},
     Body, Error, Method, Request, Response, Result, Server, StatusCode,
 };
-use serde_json::Value;
+use serde_json::{Map, Value};
 use std::path::Path;
-use tokio::fs;
+use tokio::{
+    fs::{self, File},
+    io::{AsyncBufReadExt, BufReader},
+};
 
 const THEME_DIR: &str = "themes";
 
@@ -45,13 +49,41 @@ async fn send_themes_list() -> Response<Body> {
     let body = serde_json::to_string_pretty(&Value::Array(themes_vec))
         .unwrap()
         .into();
-    Response::builder().body(body).unwrap()
+    Response::builder()
+        .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+        .body(body)
+        .unwrap()
 }
 
 async fn send_theme(theme: &str) -> Response<Body> {
+    // Define file location of theme
     let theme_path = Path::new(THEME_DIR).join(theme);
-    if let Ok(file_content) = fs::read_to_string(theme_path).await {
-        Response::builder().body(file_content.into()).unwrap()
+
+    if let Ok(file) = File::open(theme_path).await {
+        // Map to store the theme's color values
+        let mut theme_map = Map::new();
+
+        let mut buf_reader = BufReader::new(file).lines();
+        while let Some(line) = buf_reader.next_line().await.unwrap() {
+            let line: Vec<&str> = line.split(' ').collect();
+
+            theme_map.insert(
+                // Color property name
+                line[0].to_string(),
+                // Color value
+                Value::String(line[1].to_string()),
+            );
+        }
+
+        // Format JSON and convert to body
+        let body = serde_json::to_string_pretty(&Value::Object(theme_map))
+            .unwrap()
+            .into();
+
+        Response::builder()
+            .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+            .body(body)
+            .unwrap()
     } else {
         send_not_found()
     }
