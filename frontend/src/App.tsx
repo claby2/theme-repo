@@ -8,10 +8,32 @@ import Grid from "@mui/material/Grid";
 import { SnackbarData, useSnackbar } from "./components/SnackbarContext";
 import Snackbar from "@mui/material/Snackbar";
 import Alert from "@mui/material/Alert";
+import CircularProgress from "@mui/material/CircularProgress";
+
+const Loading = () => (
+  <Box
+    sx={{
+      display: "flex",
+      flexDirection: "column",
+      width: "100%",
+      alignItems: "center",
+      justifyContent: "center",
+    }}
+  >
+    <CircularProgress
+      variant="indeterminate"
+      size={80}
+      disableShrink
+      sx={{ marginBottom: "2vh" }}
+    />
+    <Typography>Fetching themes...</Typography>
+  </Box>
+);
 
 const App = () => {
   const { snack, removeSnack, addSnack } = useSnackbar();
   const [themes, setThemes] = useState<Array<ThemeData>>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     console.debug("Fetching themes");
@@ -23,6 +45,7 @@ const App = () => {
             return { ...theme } as ThemeData;
           })
         );
+        setLoading(false);
       })
       .catch((err: AxiosError) => {
         addSnack({
@@ -45,13 +68,17 @@ const App = () => {
             Theme Repo
           </Typography>
 
-          <Grid container spacing={2}>
-            {themes.map((data, i) => (
-              <Grid item xs={6} key={i}>
-                <Theme data={data} />
-              </Grid>
-            ))}
-          </Grid>
+          {loading ? (
+            <Loading />
+          ) : (
+            <Grid container spacing={2}>
+              {themes.map((data, i) => (
+                <Grid item xs={6} key={i}>
+                  <Theme data={data} />
+                </Grid>
+              ))}
+            </Grid>
+          )}
         </Box>
       </Container>
       <Snackbar

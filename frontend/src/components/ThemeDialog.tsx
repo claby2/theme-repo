@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import axios, { AxiosResponse, AxiosError } from "axios";
-import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
@@ -9,12 +8,14 @@ import DialogTitle from "@mui/material/DialogTitle";
 import FormControl from "@mui/material/FormControl";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
-import { ThemeData } from "./Theme";
 import InputLabel from "@mui/material/InputLabel";
 import Typography from "@mui/material/Typography";
-import { IconButton } from "@mui/material";
+import IconButton from "@mui/material/IconButton";
 import CloseIcon from "@mui/icons-material/Close";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import { SnackbarData, useSnackbar } from "./SnackbarContext";
+import { ThemeData } from "./Theme";
+import Tooltip from "@mui/material/Tooltip";
 
 const FORMATS = ["json", "xresources"] as const;
 type Format = typeof FORMATS[number];
@@ -114,13 +115,19 @@ const ThemeDialog = ({ data, open, onClose }: ThemeModalProps) => {
           </Select>
         </FormControl>
 
-        <Button
-          variant="contained"
-          color="success"
-          onClick={() => fetchTheme(format)}
-        >
-          Fetch
-        </Button>
+        <Tooltip title="Copy to clipboard">
+          <IconButton
+            onClick={() => {
+              navigator.clipboard.writeText(text);
+              addSnack({
+                message: "Copied to clipboard!",
+                severity: "success",
+              } as SnackbarData);
+            }}
+          >
+            <ContentCopyIcon />
+          </IconButton>
+        </Tooltip>
       </DialogActions>
     </Dialog>
   );
