@@ -36,7 +36,7 @@ const ThemeDialog = ({ data, open, onClose }: ThemeModalProps) => {
           silentJSONParsing: false,
         },
       })
-      .then((res) => setText(JSON.stringify(res.data)));
+      .then((res) => setText(JSON.stringify(res.data, null, 4)));
   };
 
   useEffect(() => {
@@ -44,36 +44,53 @@ const ThemeDialog = ({ data, open, onClose }: ThemeModalProps) => {
   }, [data, format]);
 
   return (
-    <Dialog open={open} onClose={onClose}>
-      <DialogTitle>{data?.name}</DialogTitle>
-      <DialogContent sx={{ backgroundColor: data?.background }}>
-        {text.split("\\n").map((line, i) => (
-          <Typography key={i}>{line}</Typography>
-        ))}
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>{`${data?.name} (${format})`}</DialogTitle>
+      <DialogContent
+        sx={{ color: data?.foreground, backgroundColor: data?.background }}
+      >
+        <br />
+        <DialogContentText component="pre" sx={{ color: data?.foreground }}>
+          {text.split("\\n").map((line, i) => (
+            <div key={i}>{line}</div>
+          ))}
+        </DialogContentText>
       </DialogContent>
-      <DialogActions>
-        <Box display="flex" justifyContent="space-between" alignItems="center">
-          <FormControl sx={{ minWidth: 200 }}>
-            <InputLabel>Format</InputLabel>
-            <Select
-              autoFocus
-              defaultValue={FORMATS[0]}
-              value={format}
-              onChange={(event) => {
-                setFormat(event.target.value);
-              }}
-              label="Format"
-            >
-              {FORMATS.map((format, i) => (
-                <MenuItem key={i} value={format}>
-                  {format}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+      <DialogActions
+        sx={{
+          paddingTop: "2vh",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <FormControl sx={{ minWidth: 200 }}>
+          <InputLabel>Format</InputLabel>
+          <Select
+            autoFocus
+            defaultValue={FORMATS[0]}
+            value={format}
+            onChange={(event) => {
+              setFormat(event.target.value);
+              fetchTheme();
+            }}
+            label="Format"
+          >
+            {FORMATS.map((format, i) => (
+              <MenuItem key={i} value={format}>
+                {format}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
 
-          <Button onClick={() => fetchTheme()}>Fetch</Button>
-        </Box>
+        <Button
+          variant="contained"
+          color="success"
+          onClick={() => fetchTheme()}
+        >
+          Fetch
+        </Button>
       </DialogActions>
     </Dialog>
   );
