@@ -1,33 +1,6 @@
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::borrow::Cow;
 use url::Url;
-
-#[derive(Serialize, Deserialize)]
-struct ThemeData {
-    name: String,
-    color0: String,
-    color1: String,
-    color2: String,
-    color3: String,
-    color4: String,
-    color5: String,
-    color6: String,
-    color7: String,
-    color8: String,
-    color9: String,
-    color10: String,
-    color11: String,
-    color12: String,
-    color13: String,
-    color14: String,
-    color15: String,
-    background: String,
-    selection_foreground: String,
-    cursor: String,
-    foreground: String,
-    selection_background: String,
-}
 
 pub enum ThemeFormatter {
     Json,
@@ -49,9 +22,10 @@ impl ThemeFormatter {
         }
     }
 
-    fn format_xresources(data: &ThemeData) -> String {
+    fn format_xresources(data: &Value) -> String {
         format!(
-            "! Generated with theme-repo
+            r#"
+! Generated with theme-repo
 ! Theme: {}
 *.foreground:  {}
 *.background:  {}
@@ -71,37 +45,35 @@ impl ThemeFormatter {
 *.color6:      {}
 *.color14:     {}
 *.color7:      {}
-*.color15:     {}",
-            data.name,
-            data.foreground,
-            data.background,
-            data.cursor,
-            data.color0,
-            data.color8,
-            data.color1,
-            data.color9,
-            data.color2,
-            data.color10,
-            data.color3,
-            data.color11,
-            data.color4,
-            data.color12,
-            data.color5,
-            data.color13,
-            data.color6,
-            data.color14,
-            data.color7,
-            data.color15,
+*.color15:     {}
+"#,
+            data["name"].as_str().unwrap_or_default(),
+            data["foreground"].as_str().unwrap_or_default(),
+            data["background"].as_str().unwrap_or_default(),
+            data["cursor"].as_str().unwrap_or_default(),
+            data["color0"].as_str().unwrap_or_default(),
+            data["color8"].as_str().unwrap_or_default(),
+            data["color1"].as_str().unwrap_or_default(),
+            data["color9"].as_str().unwrap_or_default(),
+            data["color2"].as_str().unwrap_or_default(),
+            data["color10"].as_str().unwrap_or_default(),
+            data["color3"].as_str().unwrap_or_default(),
+            data["color11"].as_str().unwrap_or_default(),
+            data["color4"].as_str().unwrap_or_default(),
+            data["color12"].as_str().unwrap_or_default(),
+            data["color5"].as_str().unwrap_or_default(),
+            data["color13"].as_str().unwrap_or_default(),
+            data["color6"].as_str().unwrap_or_default(),
+            data["color14"].as_str().unwrap_or_default(),
+            data["color7"].as_str().unwrap_or_default(),
+            data["color15"].as_str().unwrap_or_default(),
         )
     }
 
     pub fn run(&self, theme_object: &Value) -> String {
-        let theme_object_string = theme_object.to_string();
-        let data: ThemeData = serde_json::from_str(&theme_object_string).unwrap();
-
         match self {
-            ThemeFormatter::Json => theme_object_string,
-            ThemeFormatter::Xresources => Self::format_xresources(&data),
+            ThemeFormatter::Json => serde_json::to_string(theme_object).unwrap(),
+            ThemeFormatter::Xresources => Self::format_xresources(theme_object),
         }
     }
 }

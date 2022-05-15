@@ -24,24 +24,27 @@ type ThemeModalProps = {
 
 const ThemeDialog = ({ data, open, onClose }: ThemeModalProps) => {
   const [format, setFormat] = useState(FORMATS[0]);
-  const [link, setLink] = useState("");
   const [text, setText] = useState("Click fetch to preview theme");
 
-  const fetchTheme = async () => {
+  const fetchTheme = async (format: string) => {
     axios
-      .get(link, {
+      .get(`http://localhost:3001/theme/${data?.name}?format=${format}`, {
         responseType: "text",
         transformResponse: undefined,
         transitional: {
           silentJSONParsing: false,
         },
       })
-      .then((res) => setText(JSON.stringify(res.data, null, 4)));
+      .then((res) => {
+        let text =
+          format === "json" ? JSON.stringify(res.data, null, 4) : res.data;
+        setText(text);
+      });
   };
 
-  useEffect(() => {
-    setLink(`http://localhost:3001/theme/${data?.name}?format=${format}`);
-  }, [data, format]);
+  if (open === true) {
+    fetchTheme(format);
+  }
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -49,8 +52,11 @@ const ThemeDialog = ({ data, open, onClose }: ThemeModalProps) => {
       <DialogContent
         sx={{ color: data?.foreground, backgroundColor: data?.background }}
       >
-        <br />
-        <DialogContentText component="pre" sx={{ color: data?.foreground }}>
+        <DialogContentText
+          fontFamily="monospace"
+          component="pre"
+          sx={{ color: data?.foreground }}
+        >
           {text.split("\\n").map((line, i) => (
             <div key={i}>{line}</div>
           ))}
@@ -72,7 +78,7 @@ const ThemeDialog = ({ data, open, onClose }: ThemeModalProps) => {
             value={format}
             onChange={(event) => {
               setFormat(event.target.value);
-              fetchTheme();
+              fetchTheme(event.target.value);
             }}
             label="Format"
           >
@@ -87,7 +93,7 @@ const ThemeDialog = ({ data, open, onClose }: ThemeModalProps) => {
         <Button
           variant="contained"
           color="success"
-          onClick={() => fetchTheme()}
+          onClick={() => fetchTheme(format)}
         >
           Fetch
         </Button>
