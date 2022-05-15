@@ -11,6 +11,9 @@ import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import { ThemeData } from "./Theme";
 import InputLabel from "@mui/material/InputLabel";
+import Typography from "@mui/material/Typography";
+import { IconButton } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 import { SnackbarData, useSnackbar } from "./SnackbarContext";
 
 const FORMATS = ["json", "xresources"] as const;
@@ -58,7 +61,19 @@ const ThemeDialog = ({ data, open, onClose }: ThemeModalProps) => {
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{`${data?.name} (${format})`}</DialogTitle>
+      <DialogTitle
+        component="div"
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <Typography variant="h5">{`${data?.name} (${format})`}</Typography>
+        <IconButton aria-label="close" onClick={onClose}>
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
       <DialogContent
         sx={{ color: data?.foreground, backgroundColor: data?.background }}
       >
@@ -83,7 +98,6 @@ const ThemeDialog = ({ data, open, onClose }: ThemeModalProps) => {
         <FormControl sx={{ minWidth: 200 }}>
           <InputLabel>Format</InputLabel>
           <Select
-            autoFocus
             defaultValue={"json"}
             value={format}
             onChange={(event) => {
