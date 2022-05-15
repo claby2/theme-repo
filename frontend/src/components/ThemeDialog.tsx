@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import axios, { AxiosResponse, AxiosError } from "axios";
 import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
@@ -10,11 +10,11 @@ import FormControl from "@mui/material/FormControl";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import { ThemeData } from "./Theme";
-import Box from "@mui/material/Box";
 import InputLabel from "@mui/material/InputLabel";
-import Typography from "@mui/material/Typography";
+import { SnackbarData, useSnackbar } from "./SnackbarContext";
 
-const FORMATS = ["json", "xresources"];
+const FORMATS = ["json", "xresources"] as const;
+type Format = typeof FORMATS[number];
 
 type ThemeModalProps = {
   data: ThemeData | null;
@@ -23,10 +23,12 @@ type ThemeModalProps = {
 };
 
 const ThemeDialog = ({ data, open, onClose }: ThemeModalProps) => {
-  const [format, setFormat] = useState(FORMATS[0]);
+  const { addSnack } = useSnackbar();
+  const [format, setFormat] = useState<Format>("json");
   const [text, setText] = useState("Click fetch to preview theme");
 
   const fetchTheme = async (format: string) => {
+    console.debug(`Fecthing ${data?.name} theme in ${format} format`);
     axios
       .get(`http://localhost:3001/theme/${data?.name}?format=${format}`, {
         responseType: "text",
@@ -35,16 +37,24 @@ const ThemeDialog = ({ data, open, onClose }: ThemeModalProps) => {
           silentJSONParsing: false,
         },
       })
-      .then((res) => {
+      .then((res: AxiosResponse) => {
         let text =
           format === "json" ? JSON.stringify(res.data, null, 4) : res.data;
         setText(text);
+      })
+      .catch((err: AxiosError) => {
+        addSnack({
+          message: `${err.name}: ${err.message} (${err.code})`,
+          severity: "error",
+        } as SnackbarData);
       });
   };
 
-  if (open === true) {
-    fetchTheme(format);
-  }
+  useEffect(() => {
+    if (open === true) {
+      fetchTheme(format);
+    }
+  }, [open]);
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -74,10 +84,10 @@ const ThemeDialog = ({ data, open, onClose }: ThemeModalProps) => {
           <InputLabel>Format</InputLabel>
           <Select
             autoFocus
-            defaultValue={FORMATS[0]}
+            defaultValue={"json"}
             value={format}
             onChange={(event) => {
-              setFormat(event.target.value);
+              setFormat(event.target.value as Format);
               fetchTheme(event.target.value);
             }}
             label="Format"
