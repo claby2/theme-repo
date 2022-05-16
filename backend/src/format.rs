@@ -1,28 +1,39 @@
-use serde_json::Value;
-use std::borrow::Cow;
+use std::{
+    borrow::Cow,
+    error::Error,
+    fmt::{self, Display, Formatter},
+};
 use url::Url;
 
-pub enum ThemeFormatter {
+#[derive(Debug)]
+pub enum FormatError {
+    InvalidFormat(String),
+}
+
+impl Error for FormatError {}
+
+impl Display for FormatError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            FormatError::InvalidFormat(s) => write!(f, "Invalid Format: {s}"),
+        }
+    }
+}
+
+pub enum ThemeFormat {
+    Toml,
     Json,
     Xresources,
 }
 
-impl Default for ThemeFormatter {
+impl Default for ThemeFormat {
     fn default() -> Self {
-        Self::Json
+        Self::Toml
     }
 }
 
-impl ThemeFormatter {
-    fn from_str(value: &str) -> Option<Self> {
-        match value {
-            "json" => Some(ThemeFormatter::Json),
-            "xresources" => Some(ThemeFormatter::Xresources),
-            _ => None,
-        }
-    }
-
-    fn format_xresources(data: &Value) -> String {
+impl ThemeFormat {
+    fn format_xresources(data: &toml::Value) -> String {
         format!(
             r#"
 ! Generated with theme-repo
@@ -70,22 +81,62 @@ impl ThemeFormatter {
         )
     }
 
-    pub fn run(&self, theme_object: &Value) -> String {
+    pub fn run(&self, theme_object: &toml::Value) -> String {
         match self {
-            ThemeFormatter::Json => serde_json::to_string(theme_object).unwrap(),
-            ThemeFormatter::Xresources => Self::format_xresources(theme_object),
+            ThemeFormat::Toml => toml::to_string(theme_object).unwrap(),
+            ThemeFormat::Json => serde_json::to_string(theme_object).unwrap(),
+            ThemeFormat::Xresources => Self::format_xresources(theme_object),
         }
     }
 }
 
-impl From<&Url> for ThemeFormatter {
-    fn from(url: &Url) -> Self {
+impl TryFrom<&str> for ThemeFormat {
+    type Error = FormatError;
+
+    fn try_from(format: &str) -> Result<Self, Self::Error> {
+        match format {
+            "toml" => Ok(ThemeFormat::Toml),
+            "json" => Ok(ThemeFormat::Json),
+            "xresources" => Ok(ThemeFormat::Xresources),
+            _ => Err(FormatError::InvalidFormat(format.to_string())),
+        }
+    }
+}
+
+impl TryFrom<&Url> for ThemeFormat {
+    type Error = FormatError;
+
+    fn try_from(url: &Url) -> Result<Self, Self::Error> {
         let mut query_pairs = url.query_pairs();
         if let Some(pair) = query_pairs.find(|pair| pair.0 == Cow::Borrowed("format")) {
-            ThemeFormatter::from_str(&pair.1)
+            ThemeFormat::try_from(pair.1.as_ref())
         } else {
-            None
+            Ok(ThemeFormat::default())
         }
-        .unwrap_or_default()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn invalid_format() {
+        let format = "invalid-format";
+
+        assert!(matches!(
+            ThemeFormat::try_from(format),
+            Err(FormatError::InvalidFormat(_))
+        ));
+    }
+
+    #[test]
+    fn invalid_format_in_url() {
+        let url = Url::parse("https://example.com?format=invalid-format").unwrap();
+
+        assert!(matches!(
+            ThemeFormat::try_from(&url),
+            Err(FormatError::InvalidFormat(_))
+        ));
     }
 }

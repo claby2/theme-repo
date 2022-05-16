@@ -17,7 +17,7 @@ import { SnackbarData, useSnackbar } from "./SnackbarContext";
 import { ThemeData } from "./Theme";
 import Tooltip from "@mui/material/Tooltip";
 
-const FORMATS = ["json", "xresources"] as const;
+const FORMATS = ["toml", "json", "xresources"] as const;
 type Format = typeof FORMATS[number];
 
 type ThemeModalProps = {
