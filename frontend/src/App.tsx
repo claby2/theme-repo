@@ -53,7 +53,7 @@ const App = () => {
           severity: "error",
         } as SnackbarData);
       });
-  }, []);
+  }, [addSnack]);
 
   return (
     <>

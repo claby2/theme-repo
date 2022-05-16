@@ -17,9 +17,6 @@ import { SnackbarData, useSnackbar } from "./SnackbarContext";
 import { ThemeData } from "./Theme";
 import Tooltip from "@mui/material/Tooltip";
 
-const FORMATS = ["toml", "json", "xresources"] as const;
-type Format = typeof FORMATS[number];
-
 type ThemeModalProps = {
   data: ThemeData | null;
   open: boolean;
@@ -28,23 +25,49 @@ type ThemeModalProps = {
 
 const ThemeDialog = ({ data, open, onClose }: ThemeModalProps) => {
   const { addSnack } = useSnackbar();
-  const [format, setFormat] = useState<Format>("json");
+  const [templates, setTemplates] = useState<Array<string>>([]);
+  const [template, setTemplate] = useState<string>("toml");
   const [text, setText] = useState("Click fetch to preview theme");
 
-  const fetchTheme = async (format: string) => {
-    console.debug(`Fecthing ${data?.name} theme in ${format} format`);
+  useEffect(() => {
+    const fetchTheme = async (template: string) => {
+      console.debug(`Fetching ${data?.name} theme with ${template} template`);
+      axios
+        .get(
+          `http://localhost:3001/themes/${data?.name}?template=${template}`,
+          {
+            responseType: "text",
+            transformResponse: undefined,
+            transitional: {
+              silentJSONParsing: false,
+            },
+          }
+        )
+        .then((res: AxiosResponse) => {
+          let text =
+            template === "json" ? JSON.stringify(res.data, null, 4) : res.data;
+          setText(text);
+        })
+        .catch((err: AxiosError) => {
+          addSnack({
+            message: `${err.name}: ${err.message} (${err.code})`,
+            severity: "error",
+          } as SnackbarData);
+        });
+    };
+
+    if (open === true) {
+      fetchTheme(template);
+    }
+  }, [open, template, addSnack, data?.name]);
+
+  useEffect(() => {
+    console.debug("Fetching templates");
+    // Fetch templates
     axios
-      .get(`http://localhost:3001/theme/${data?.name}?format=${format}`, {
-        responseType: "text",
-        transformResponse: undefined,
-        transitional: {
-          silentJSONParsing: false,
-        },
-      })
+      .get("http://localhost:3001/templates")
       .then((res: AxiosResponse) => {
-        let text =
-          format === "json" ? JSON.stringify(res.data, null, 4) : res.data;
-        setText(text);
+        setTemplates(res.data);
       })
       .catch((err: AxiosError) => {
         addSnack({
@@ -52,13 +75,7 @@ const ThemeDialog = ({ data, open, onClose }: ThemeModalProps) => {
           severity: "error",
         } as SnackbarData);
       });
-  };
-
-  useEffect(() => {
-    if (open === true) {
-      fetchTheme(format);
-    }
-  }, [open]);
+  }, [addSnack]);
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -70,7 +87,7 @@ const ThemeDialog = ({ data, open, onClose }: ThemeModalProps) => {
           alignItems: "center",
         }}
       >
-        <Typography variant="h5">{`${data?.name} (${format})`}</Typography>
+        <Typography variant="h5">{`${data?.name} (${template})`}</Typography>
         <IconButton aria-label="close" onClick={onClose}>
           <CloseIcon />
         </IconButton>
@@ -100,16 +117,15 @@ const ThemeDialog = ({ data, open, onClose }: ThemeModalProps) => {
           <InputLabel>Format</InputLabel>
           <Select
             defaultValue={"json"}
-            value={format}
+            value={template}
             onChange={(event) => {
-              setFormat(event.target.value as Format);
-              fetchTheme(event.target.value);
+              setTemplate(event.target.value);
             }}
             label="Format"
           >
-            {FORMATS.map((format, i) => (
-              <MenuItem key={i} value={format}>
-                {format}
+            {templates.map((template, i) => (
+              <MenuItem key={i} value={template}>
+                {template}
               </MenuItem>
             ))}
           </Select>
