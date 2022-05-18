@@ -12,6 +12,34 @@ Themes can be converted to custom formats for use with any external application.
 - Custom scheme formats
 - (Optional) web frontend
 
+## Getting Started
+
+### Docker Compose
+
+1. Create `docker-compose.yml` file:
+
+```yaml
+version: "2.1"
+
+services:
+  theme-repo:
+    image: claby2/theme-repo:latest
+    container_name: theme-repo
+    ports:
+      - "3000:80"
+    volumes:
+      - ./themes:/usr/src/backend/themes
+      - ./templates:/usr/src/backend/templates
+    restart: unless-stopped
+```
+
+2. Start the Docker Container:
+
+```sh
+cd /path/to/docker-compose.yml/
+docker-compose up -d
+```
+
 ## Backend
 
 The backend is a simple web server written in Rust.
