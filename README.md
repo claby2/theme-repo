@@ -1,5 +1,7 @@
 # Theme Repo
 
+![preview](./assets/preview.png)
+
 Theme Repo is a self-hosted repository to store your color schemes.
 With Theme Repo, you can store, manage, and keep track of your color schemes.
 Themes can be converted to custom formats for use with any external application.
