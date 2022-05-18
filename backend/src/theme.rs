@@ -36,14 +36,13 @@ pub async fn send_themes_list(themes_path: &Path) -> Response<Body> {
 
 pub async fn send_theme(args: &Args, theme: &str, template: Template) -> Response<Body> {
     if let Some(theme_toml) = create_theme_toml(&args.themes_path, theme).await {
-        let body = template
-            .format(&args.templates_path, &theme_toml)
-            .await
-            .into();
-        Response::builder()
-            .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
-            .body(body)
-            .unwrap()
+        match template.format(&args.templates_path, &theme_toml).await {
+            Ok(body) => Response::builder()
+                .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+                .body(body.into())
+                .unwrap(),
+            Err(err) => crate::send_internal_server_error(&err),
+        }
     } else {
         crate::send_not_found()
     }

@@ -6,7 +6,7 @@ use std::{
     io,
     path::Path,
 };
-use tinytemplate::TinyTemplate;
+use tinytemplate::{error::Error as TinyTemplateError, TinyTemplate};
 use tokio::fs;
 use url::Url;
 
@@ -14,6 +14,7 @@ use url::Url;
 pub enum TemplateError {
     InvalidTemplate(String),
     Io(io::Error),
+    TinyTemplate(TinyTemplateError),
 }
 
 impl Error for TemplateError {}
@@ -22,7 +23,8 @@ impl Display for TemplateError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::InvalidTemplate(s) => write!(f, "Invalid Template: {s}"),
-            Self::Io(err) => write!(f, "{err}"),
+            Self::Io(err) => write!(f, "Io Error: {err}"),
+            Self::TinyTemplate(err) => write!(f, "TinyTemplate Error: {err}"),
         }
     }
 }
@@ -33,6 +35,13 @@ impl From<io::Error> for TemplateError {
     }
 }
 
+impl From<TinyTemplateError> for TemplateError {
+    fn from(err: TinyTemplateError) -> Self {
+        Self::TinyTemplate(err)
+    }
+}
+
+/// Retrieves a list of locally-stored templates
 async fn fetch_template_files(templates_path: &Path) -> io::Result<Vec<String>> {
     let mut templates_dir = fs::read_dir(templates_path).await?;
     let mut templates = Vec::new();
@@ -43,6 +52,7 @@ async fn fetch_template_files(templates_path: &Path) -> io::Result<Vec<String>> 
     Ok(templates)
 }
 
+/// Sends a JSON list of all available templates
 pub async fn send_templates_list(templates_path: &Path) -> Response<Body> {
     match fetch_template_files(templates_path).await {
         Ok(templates) => {
@@ -51,6 +61,7 @@ pub async fn send_templates_list(templates_path: &Path) -> Response<Body> {
                 .map(|template| serde_json::Value::String(String::from(template)))
                 .collect();
 
+            // JSON and TOML templates are builtin, so they must be appended manually
             templates.append(&mut vec![
                 serde_json::Value::String(String::from("json")),
                 serde_json::Value::String(String::from("toml")),
@@ -73,7 +84,9 @@ pub async fn send_templates_list(templates_path: &Path) -> Response<Body> {
 pub enum Template {
     Toml,
     Json,
-    Other(String),
+
+    // Holds name of template in templates directory
+    Custom(String),
 }
 
 impl Default for Template {
@@ -83,6 +96,7 @@ impl Default for Template {
 }
 
 impl Template {
+    /// Converts a string slice into a template.
     async fn from_str(templates_path: &Path, template: &str) -> Result<Self, TemplateError> {
         match template {
             "toml" => Ok(Template::Toml),
@@ -91,14 +105,16 @@ impl Template {
                 let template = String::from(template);
                 let templates = fetch_template_files(templates_path).await?;
                 if templates.contains(&template) {
-                    Ok(Template::Other(template))
+                    Ok(Template::Custom(template))
                 } else {
+                    // The given template string does not correspond with an existing file
                     Err(TemplateError::InvalidTemplate(template))
                 }
             }
         }
     }
 
+    /// Converts a URL into a template.
     pub async fn from_url(templates_path: &Path, url: &Url) -> Result<Self, TemplateError> {
         let mut query_pairs = url.query_pairs();
         if let Some(pair) = query_pairs.find(|pair| pair.0 == Cow::Borrowed("template")) {
@@ -108,16 +124,24 @@ impl Template {
         }
     }
 
-    pub async fn format(&self, templates_path: &Path, theme_object: &toml::Value) -> String {
+    /// Formats a theme toml value according to a template.
+    pub async fn format(
+        &self,
+        templates_path: &Path,
+        theme_object: &toml::Value,
+    ) -> Result<String, TemplateError> {
         match self {
-            Template::Toml => toml::to_string(theme_object).unwrap(),
-            Template::Json => serde_json::to_string(theme_object).unwrap(),
-            Template::Other(template) => {
-                let mut tt = TinyTemplate::new();
+            Template::Toml => Ok(toml::to_string(theme_object).unwrap()),
+            Template::Json => Ok(serde_json::to_string(theme_object).unwrap()),
+            Template::Custom(template) => {
+                // Get template as string from file
                 let template_path = Path::new(templates_path).join(template);
                 let template_text = std::fs::read_to_string(template_path).unwrap();
-                tt.add_template(template, &template_text).unwrap();
-                tt.render(template, theme_object).unwrap()
+
+                // Perform template render
+                let mut tt = TinyTemplate::new();
+                tt.add_template(template, &template_text)?;
+                Ok(tt.render(template, theme_object)?)
             }
         }
     }
