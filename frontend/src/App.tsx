@@ -38,7 +38,7 @@ const App = () => {
   useEffect(() => {
     console.debug("Fetching themes");
     axios
-      .get("http://localhost:3001/themes")
+      .get(`${process.env.REACT_APP_BACKEND_URL}/themes`)
       .then((res: AxiosResponse) => {
         setThemes(
           res.data.map((theme: object) => {

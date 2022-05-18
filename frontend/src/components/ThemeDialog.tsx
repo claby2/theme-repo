@@ -34,7 +34,7 @@ const ThemeDialog = ({ data, open, onClose }: ThemeModalProps) => {
       console.debug(`Fetching ${data?.name} theme with ${template} template`);
       axios
         .get(
-          `http://localhost:3001/themes/${data?.name}?template=${template}`,
+          `${process.env.REACT_APP_BACKEND_URL}/themes/${data?.name}?template=${template}`,
           {
             responseType: "text",
             transformResponse: undefined,
@@ -65,7 +65,7 @@ const ThemeDialog = ({ data, open, onClose }: ThemeModalProps) => {
     console.debug("Fetching templates");
     // Fetch templates
     axios
-      .get("http://localhost:3001/templates")
+      .get(`${process.env.REACT_APP_BACKEND_URL}/templates`)
       .then((res: AxiosResponse) => {
         setTemplates(res.data);
       })

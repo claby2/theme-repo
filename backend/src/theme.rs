@@ -1,20 +1,18 @@
-use crate::template::Template;
 use crate::util;
+use crate::{cli::Args, template::Template};
 use hyper::{header, Body, Response};
 use std::path::Path;
 use tokio::fs;
 
-const THEMES_DIR: &str = "themes";
-
-pub async fn send_themes_list() -> Response<Body> {
-    match fs::read_dir(THEMES_DIR).await {
+pub async fn send_themes_list(themes_path: &Path) -> Response<Body> {
+    match fs::read_dir(themes_path).await {
         Ok(mut themes_dir) => {
             let mut themes_vec = Vec::new();
 
             // Fill themes_vec
             while let Some(theme) = themes_dir.next_entry().await.unwrap() {
                 let theme = theme.file_name().into_string().unwrap();
-                if let Some(theme_toml) = create_theme_toml(&theme).await {
+                if let Some(theme_toml) = create_theme_toml(themes_path, &theme).await {
                     themes_vec.push(theme_toml);
                 }
             }
@@ -36,9 +34,12 @@ pub async fn send_themes_list() -> Response<Body> {
     }
 }
 
-pub async fn send_theme(theme: &str, template: Template) -> Response<Body> {
-    if let Some(theme_toml) = create_theme_toml(theme).await {
-        let body = template.format(&theme_toml).await.into();
+pub async fn send_theme(args: &Args, theme: &str, template: Template) -> Response<Body> {
+    if let Some(theme_toml) = create_theme_toml(&args.themes_path, theme).await {
+        let body = template
+            .format(&args.templates_path, &theme_toml)
+            .await
+            .into();
         Response::builder()
             .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
             .body(body)
@@ -48,8 +49,8 @@ pub async fn send_theme(theme: &str, template: Template) -> Response<Body> {
     }
 }
 
-async fn create_theme_toml(theme: &str) -> Option<toml::Value> {
-    let theme_path = Path::new(THEMES_DIR).join(theme);
+async fn create_theme_toml(themes_path: &Path, theme: &str) -> Option<toml::Value> {
+    let theme_path = Path::new(themes_path).join(theme);
     if let Ok(file_content) = fs::read_to_string(theme_path).await {
         Some(deserialize_theme_toml(theme, &file_content))
     } else {

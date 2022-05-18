@@ -10,8 +10,6 @@ use tinytemplate::TinyTemplate;
 use tokio::fs;
 use url::Url;
 
-const TEMPLATES_DIR: &str = "templates";
-
 #[derive(Debug)]
 pub enum TemplateError {
     InvalidTemplate(String),
@@ -35,8 +33,8 @@ impl From<io::Error> for TemplateError {
     }
 }
 
-async fn fetch_template_files() -> io::Result<Vec<String>> {
-    let mut templates_dir = fs::read_dir(TEMPLATES_DIR).await?;
+async fn fetch_template_files(templates_path: &Path) -> io::Result<Vec<String>> {
+    let mut templates_dir = fs::read_dir(templates_path).await?;
     let mut templates = Vec::new();
     while let Some(template) = templates_dir.next_entry().await.unwrap() {
         let template = template.file_name().into_string().unwrap();
@@ -45,8 +43,8 @@ async fn fetch_template_files() -> io::Result<Vec<String>> {
     Ok(templates)
 }
 
-pub async fn send_templates_list() -> Response<Body> {
-    match fetch_template_files().await {
+pub async fn send_templates_list(templates_path: &Path) -> Response<Body> {
+    match fetch_template_files(templates_path).await {
         Ok(templates) => {
             let mut templates: Vec<serde_json::Value> = templates
                 .iter()
@@ -85,13 +83,13 @@ impl Default for Template {
 }
 
 impl Template {
-    async fn from_str(template: &str) -> Result<Self, TemplateError> {
+    async fn from_str(templates_path: &Path, template: &str) -> Result<Self, TemplateError> {
         match template {
             "toml" => Ok(Template::Toml),
             "json" => Ok(Template::Json),
             template => {
                 let template = String::from(template);
-                let templates = fetch_template_files().await?;
+                let templates = fetch_template_files(templates_path).await?;
                 if templates.contains(&template) {
                     Ok(Template::Other(template))
                 } else {
@@ -101,22 +99,22 @@ impl Template {
         }
     }
 
-    pub async fn from_url(url: &Url) -> Result<Self, TemplateError> {
+    pub async fn from_url(templates_path: &Path, url: &Url) -> Result<Self, TemplateError> {
         let mut query_pairs = url.query_pairs();
         if let Some(pair) = query_pairs.find(|pair| pair.0 == Cow::Borrowed("template")) {
-            Self::from_str(pair.1.as_ref()).await
+            Self::from_str(templates_path, pair.1.as_ref()).await
         } else {
             Ok(Self::default())
         }
     }
 
-    pub async fn format(&self, theme_object: &toml::Value) -> String {
+    pub async fn format(&self, templates_path: &Path, theme_object: &toml::Value) -> String {
         match self {
             Template::Toml => toml::to_string(theme_object).unwrap(),
             Template::Json => serde_json::to_string(theme_object).unwrap(),
             Template::Other(template) => {
                 let mut tt = TinyTemplate::new();
-                let template_path = Path::new(TEMPLATES_DIR).join(template);
+                let template_path = Path::new(templates_path).join(template);
                 let template_text = std::fs::read_to_string(template_path).unwrap();
                 tt.add_template(template, &template_text).unwrap();
                 tt.render(template, theme_object).unwrap()
@@ -134,7 +132,7 @@ mod tests {
         let template = "invalid-template";
 
         assert!(matches!(
-            Template::from_str(template).await,
+            Template::from_str(Path::new("./templates"), template).await,
             Err(TemplateError::InvalidTemplate(_))
         ));
     }
@@ -144,7 +142,7 @@ mod tests {
         let url = Url::parse("https://example.com?template=invalid-template").unwrap();
 
         assert!(matches!(
-            Template::from_url(&url).await,
+            Template::from_url(Path::new("./templates"), &url).await,
             Err(TemplateError::InvalidTemplate(_))
         ));
     }
