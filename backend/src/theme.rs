@@ -4,6 +4,7 @@ use hyper::{header, Body, Response};
 use std::path::Path;
 use tokio::fs;
 
+/// Sends a list of all themes
 pub async fn send_themes_list(themes_path: &Path) -> Response<Body> {
     match fs::read_dir(themes_path).await {
         Ok(mut themes_dir) => {
@@ -28,7 +29,7 @@ pub async fn send_themes_list(themes_path: &Path) -> Response<Body> {
                 .unwrap()
         }
         Err(err) => {
-            // THEME_DIR does not exist
+            // Path to themes directory does not exist
             crate::send_internal_server_error(&err)
         }
     }

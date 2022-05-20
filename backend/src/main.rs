@@ -37,25 +37,32 @@ async fn main() -> Result<()> {
 async fn fetch_response(req: Request<Body>, args: Args) -> Result<Response<Body>> {
     let url = Url::parse(&format!("http://{ADDRESS}{}", req.uri())).unwrap();
 
-    let mut path_segments = url.path_segments().unwrap();
+    let path_segments: Vec<&str> = url.path_segments().unwrap().collect();
 
-    match (req.method(), path_segments.next(), path_segments.next()) {
-        (&Method::GET, Some("themes"), Some(theme)) => {
+    match (req.method(), &path_segments[..]) {
+        (&Method::GET, ["themes", theme]) => {
+            // Return a specific theme
             match Template::from_url(&args.templates_path, &url).await {
                 Ok(template) => Ok(theme::send_theme(&args, theme, template).await),
                 Err(err) => Ok(send_internal_server_error(&err)),
             }
         }
-        (&Method::GET, Some("themes"), None) => {
+
+        (&Method::GET, ["themes"]) => {
+            // Return all themes
             Ok(theme::send_themes_list(&args.themes_path).await)
         }
-        (&Method::GET, Some("templates"), None) => {
+
+        (&Method::GET, ["templates"]) => {
+            // Return an array of templates
             Ok(template::send_templates_list(&args.templates_path).await)
         }
+
         _ => Ok(send_not_found()),
     }
 }
 
+/// Sends a NOT_FOUND status code
 pub fn send_not_found() -> Response<Body> {
     Response::builder()
         .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
@@ -64,66 +71,11 @@ pub fn send_not_found() -> Response<Body> {
         .unwrap()
 }
 
+/// Sends an internal server error response with a custom message
 pub fn send_internal_server_error<T: Display>(custom_message: &T) -> Response<Body> {
     Response::builder()
         .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
         .status(StatusCode::INTERNAL_SERVER_ERROR)
         .body(format!("Internal Server Error: {custom_message}").into())
         .unwrap()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn not_found() {
-        let request = Request::builder()
-            .method(Method::GET)
-            .uri("/does-not-exist")
-            .body(Body::default())
-            .unwrap();
-
-        assert_eq!(
-            fetch_response(request, Args::default())
-                .await
-                .unwrap()
-                .status(),
-            StatusCode::NOT_FOUND
-        );
-    }
-
-    #[tokio::test]
-    async fn request_with_invalid_template() {
-        let request = Request::builder()
-            .method(Method::GET)
-            .uri("/themes/theme.toml?template=this-template-does-not-exist")
-            .body(Body::default())
-            .unwrap();
-
-        assert_eq!(
-            fetch_response(request, Args::default())
-                .await
-                .unwrap()
-                .status(),
-            StatusCode::INTERNAL_SERVER_ERROR
-        )
-    }
-
-    #[tokio::test]
-    async fn request_with_no_theme_specified() {
-        let request = Request::builder()
-            .method(Method::GET)
-            .uri("/theme")
-            .body(Body::default())
-            .unwrap();
-
-        assert_eq!(
-            fetch_response(request, Args::default())
-                .await
-                .unwrap()
-                .status(),
-            StatusCode::NOT_FOUND
-        );
-    }
 }
