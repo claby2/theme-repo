@@ -1,4 +1,5 @@
 use hyper::{header, Body, Response};
+use serde_json::Error as JsonError;
 use std::{
     borrow::Cow,
     error::Error,
@@ -8,6 +9,7 @@ use std::{
 };
 use tinytemplate::{error::Error as TinyTemplateError, TinyTemplate};
 use tokio::fs;
+use toml::ser::Error as TomlError;
 use url::Url;
 
 #[derive(Debug)]
@@ -15,6 +17,8 @@ pub enum TemplateError {
     InvalidTemplate(String),
     Io(io::Error),
     TinyTemplate(TinyTemplateError),
+    Toml(TomlError),
+    Json(JsonError),
 }
 
 impl Error for TemplateError {}
@@ -25,6 +29,8 @@ impl Display for TemplateError {
             Self::InvalidTemplate(s) => write!(f, "Invalid Template: {s}"),
             Self::Io(err) => write!(f, "Io Error: {err}"),
             Self::TinyTemplate(err) => write!(f, "TinyTemplate Error: {err}"),
+            Self::Toml(err) => write!(f, "TOML Error: {err}"),
+            Self::Json(err) => write!(f, "JSON Error: {err}"),
         }
     }
 }
@@ -41,14 +47,30 @@ impl From<TinyTemplateError> for TemplateError {
     }
 }
 
+impl From<TomlError> for TemplateError {
+    fn from(err: TomlError) -> Self {
+        Self::Toml(err)
+    }
+}
+
+impl From<JsonError> for TemplateError {
+    fn from(err: JsonError) -> Self {
+        Self::Json(err)
+    }
+}
+
 /// Retrieves a list of locally-stored templates
 async fn fetch_template_files(templates_path: &Path) -> io::Result<Vec<String>> {
     let mut templates_dir = fs::read_dir(templates_path).await?;
     let mut templates = Vec::new();
-    while let Some(template) = templates_dir.next_entry().await.unwrap() {
-        let template = template.file_name().into_string().unwrap();
-        templates.push(template);
+
+    // Iterate through entries in templates directory and push them into templates vector
+    while let Some(template) = templates_dir.next_entry().await? {
+        if let Ok(template) = template.file_name().into_string() {
+            templates.push(template);
+        }
     }
+
     Ok(templates)
 }
 
@@ -61,7 +83,7 @@ pub async fn send_templates_list(templates_path: &Path) -> Response<Body> {
                 .map(|template| serde_json::Value::String(String::from(template)))
                 .collect();
 
-            // JSON and TOML templates are builtin, so they must be appended manually
+            // JSON and TOML templates are builtin templates, so they must be appended manually
             templates.append(&mut vec![
                 serde_json::Value::String(String::from("json")),
                 serde_json::Value::String(String::from("toml")),
@@ -131,12 +153,12 @@ impl Template {
         theme_object: &toml::Value,
     ) -> Result<String, TemplateError> {
         match self {
-            Template::Toml => Ok(toml::to_string(theme_object).unwrap()),
-            Template::Json => Ok(serde_json::to_string(theme_object).unwrap()),
+            Template::Toml => Ok(toml::to_string(theme_object)?),
+            Template::Json => Ok(serde_json::to_string(theme_object)?),
             Template::Custom(template) => {
                 // Get template as string from file
                 let template_path = Path::new(templates_path).join(template);
-                let template_text = std::fs::read_to_string(template_path).unwrap();
+                let template_text = std::fs::read_to_string(template_path)?;
 
                 // Perform template render
                 let mut tt = TinyTemplate::new();
