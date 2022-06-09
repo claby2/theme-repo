@@ -19,8 +19,8 @@ WORKDIR /usr/src/frontend
 COPY ./frontend .
 RUN yarn install
 
-ARG REACT_APP_BACKEND_URL
-ENV REACT_APP_BACKEND_URL=$REACT_APP_BACKEND_URL
+ARG PUBLIC_BACKEND_URL
+ENV PUBLIC_BACKEND_URL=$PUBLIC_BACKEND_URL
 
 RUN yarn build
 
@@ -38,7 +38,7 @@ VOLUME /usr/src/backend/themes
 VOLUME /usr/src/backend/templates
 
 # Copy from frontend stage
-COPY --from=frontend-build /usr/src/frontend/build /usr/share/nginx/html
+COPY --from=frontend-build /usr/src/frontend/dist /usr/share/nginx/html
 
 COPY ./nginx.default.conf /etc/nginx/conf.d/default.conf
 
