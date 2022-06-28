@@ -2,18 +2,18 @@
 import ThemesGrid from "../components/ThemesGrid.tsx";
 ---
 <html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width" />
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width" />
         <meta name="description" content="Theme Repo: Self-hosted Color Scheme Repository" />
-		<title>Astro</title>
-	</head>
-	<body class="bg-slate-800 text-white px-4">
+        <title>Theme Repo</title>
+    </head>
+    <body class="bg-slate-800 text-white px-4">
         <main class="max-w-screen-md mx-auto py-8">
             <h1 class="text-6xl font-extrabold bg-gradient-to-b from-fuchsia-400 to-indigo-400 bg-clip-text text-transparent pb-2">Theme Repo</h1>
             <div class="mt-10">
                 <ThemesGrid client:load />
             </div>
         </main>
-	</body>
+    </body>
 </html>
