@@ -66,9 +66,9 @@ const ThemeModal = ({ show, themeData, close }: ThemeModalProps) => {
         ></div>
         <div class="fixed inset-0 h-full">
           <div class="flex justify-center content-center h-full">
-            <div class="relative bg-gray-800 rounded-lg p-4 my-auto w-11/12 sm:w-2/3 lg:w-1/3">
+            <div class="relative bg-gray-700 rounded-lg p-4 my-auto w-11/12 sm:w-2/3 lg:w-1/3">
               <div class="flex align-center justify-between w-full mb-4">
-                <h3 class="font-bold text-2xl">{themeData.name}</h3>
+                <h3 class="font-bold text-3xl">{themeData.name}</h3>
                 <button
                   class="bg-red-500 rounded p-2 transition hover:scale-110"
                   onClick={() => close()}
@@ -87,7 +87,7 @@ const ThemeModal = ({ show, themeData, close }: ThemeModalProps) => {
                 onChange={(event) => {
                   setTemplate((event.target as HTMLSelectElement).value);
                 }}
-                class="bg-slate-700 rounded-md border-transparent ring-0 transition hover:scale-110"
+                class="bg-slate-800 rounded-md border-transparent ring-0 transition hover:scale-110"
               >
                 {templates.map((template: string) => (
                   <option>{template}</option>
