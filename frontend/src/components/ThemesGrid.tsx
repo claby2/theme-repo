@@ -1,5 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
 import axios, { AxiosResponse } from "axios";
+import CopyToClipboard from "./CopyToClipboard";
 
 type ThemeData = {
   name: string;
@@ -33,6 +34,7 @@ const ThemeModal = ({ show, themeData, close }: ThemeModalProps) => {
   const [template, setTemplate] = useState<string>("json");
   const [templates, setTemplates] = useState<string[]>([]);
   const [text, setText] = useState<string>("");
+  const [copied, setCopied] = useState<boolean>(false);
 
   useEffect(() => {
     axios
@@ -71,20 +73,29 @@ const ThemeModal = ({ show, themeData, close }: ThemeModalProps) => {
                 <h3 class="font-bold text-3xl">{themeData.name}</h3>
                 <button
                   class="bg-red-500 rounded p-2 transition hover:scale-110"
-                  onClick={() => close()}
+                  onClick={() => {
+                    setCopied(false);
+                    close();
+                  }}
                 >
                   Close
                 </button>
               </div>
-              <p
+              <div
                 class="whitespace-pre font-mono mb-4 rounded p-2 overflow-scroll"
                 style={`background-color: ${themeData.background}; color: ${themeData.foreground}`}
               >
-                {text}
-              </p>
+                <CopyToClipboard
+                  copied={copied}
+                  onClick={() => setCopied(true)}
+                  text={text}
+                />
+                <p>{text}</p>
+              </div>
               <select
                 value={template}
                 onChange={(event) => {
+                  setCopied(false);
                   setTemplate((event.target as HTMLSelectElement).value);
                 }}
                 class="bg-slate-800 rounded-md border-transparent ring-0 transition hover:scale-110"
